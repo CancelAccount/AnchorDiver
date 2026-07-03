@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd1b89fca7b52f54f9418a233fef8763, type: 3}
+  m_Name: LevelListConfig
+  m_EditorClassIdentifier: 
+  levels:
+  - levelId: 1001
+    levelName: "\u65B0\u4EBA"
+    sceneName: level_1
+    description: 
+    isUnlockedByDefault: 1
+  - levelId: 1002
+    levelName: "\u8BF7\u8F93\u5165\u6587\u672C"
+    sceneName: level_1
+    description: 
+    isUnlockedByDefault: 0

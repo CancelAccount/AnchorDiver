@@ -25,6 +25,7 @@ namespace Logger
         public const string PAUSEMENU = "PauseMenu";
         public const string HUD = "HUD";
         public const string UI_COMPONENTS = "UIComponents";
+        public const string LEVELSELECT = "LevelSelect";
         
 
         // 游戏数据模块

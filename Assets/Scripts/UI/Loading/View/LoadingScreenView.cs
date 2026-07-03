@@ -1,23 +1,23 @@
+using System.Collections;
 using Logger;
 using UnityEngine;
 
 using MyGame.UI.Loading.Controller;
-using UnityEngine.UI;
 
 namespace MyGame.UI.Loading.View
 {
     /// <summary>
     /// 加载界面组件
     /// MVC架构中的View层，负责显示加载界面的UI元素和动画效果
-    /// 使用Animator组件控制由bool参数触发的动画
+    /// 使用Animator.Play()直接控制动画，不再依赖Animation Event
     /// </summary>
     public class LoadingScreenView : BaseView<LoadingScreenController>
     {
         private const string LOG_MODULE = LogModules.LOADING;
         
-        // 动画参数名称常量
-        private const string ANIM_PARAM_SHOW_LOADING = "ShowLoading";
-        private const string ANIM_PARAM_HIDE_LOADING = "HideLoading";
+        // 动画状态名称常量（与Animator Controller中State名称一致）
+        private const string STATE_SHOW_LOADING = "ShowLoading";
+        private const string STATE_HIDE_LOADING = "HideLoading";
 
         [Header("层级设置")]
         [Tooltip("加载界面Canvas的Sorting Order。值越高，显示层级越高，不易被其他UI遮挡。")]
@@ -26,7 +26,11 @@ namespace MyGame.UI.Loading.View
         [Header("动画设置")]
         [Tooltip("控制加载界面显隐动画的Animator组件")]
         [SerializeField] private Animator m_animator;
-        
+
+        /// <summary>
+        /// 隐藏动画协程引用，用于防止重复启动
+        /// </summary>
+        private Coroutine m_hideCoroutine;
 
         /// <summary>
         /// 初始化加载界面
@@ -93,7 +97,6 @@ namespace MyGame.UI.Loading.View
         /// </summary>
         protected override void TryBindController()
         {
-            // 正确的方法：在GameObject上添加控制器组件
             LoadingScreenController controller = gameObject.AddComponent<LoadingScreenController>();
             
             // 初始化控制器
@@ -108,7 +111,6 @@ namespace MyGame.UI.Loading.View
         
         /// <summary>
         /// 初始化面板
-        /// 重写IUIPanel接口的Initialize方法
         /// </summary>
         public override void Initialize()
         {
@@ -117,84 +119,117 @@ namespace MyGame.UI.Loading.View
         
         /// <summary>
         /// 清理面板资源
-        /// 重写IUIPanel接口的Cleanup方法
         /// </summary>
         public override void Cleanup()
         {
+            if (m_hideCoroutine != null)
+            {
+                StopCoroutine(m_hideCoroutine);
+                m_hideCoroutine = null;
+            }
             base.Cleanup();
         }
         
         /// <summary>
         /// 显示加载界面
-        /// 重写IUIPanel接口的Show方法，通过设置bool参数触发进入动画
+        /// 每次调用都会强制激活GameObject并播放ShowLoading动画
         /// </summary>
         public override void Show()
         {
-            if (!IsVisible)
-            {  
-                // 确保CanvasGroup的alpha值为1，使面板可见
-                if (m_canvasGroup != null)
-                {
-                    m_canvasGroup.alpha = 1f;
-                }  
-                // 通过设置bool参数触发进入动画
-                if (m_animator != null)
-                {
-                    m_animator.SetBool(ANIM_PARAM_SHOW_LOADING, true);
-                    m_animator.SetBool(ANIM_PARAM_HIDE_LOADING, false);
-                }
-                
-                IsVisible = true;
-                
-                Log.Info(LOG_MODULE, "加载界面显示，触发ShowLoading动画");
+            // 确保GameObject激活
+            gameObject.SetActive(true);
+            
+            // 确保CanvasGroup可见
+            if (m_canvasGroup != null)
+            {
+                m_canvasGroup.alpha = 1f;
             }
+            
+            // 从第0帧播放ShowLoading动画
+            if (m_animator != null)
+            {
+                m_animator.Play(STATE_SHOW_LOADING, 0, 0f);
+            }
+            
+            IsVisible = true;
+            Log.Info(LOG_MODULE, "加载界面显示，播放ShowLoading动画");
         }
         
         /// <summary>
         /// 隐藏加载界面
-        /// 重写IUIPanel接口的Hide方法，通过设置bool参数触发退出动画
+        /// 播放HideLoading动画，通过协程在动画结束后清理，不依赖Animation Event
         /// </summary>
         public override void Hide()
         {
-            if (IsVisible)
+            if (!IsVisible)
             {
-                Log.Info(LOG_MODULE, "隐藏加载界面，触发HideLoading动画");
+                return;
+            }
+            
+            Log.Info(LOG_MODULE, "隐藏加载界面，播放HideLoading动画");
+            
+            // 立即标记为不可见，确保下次Show()能正常执行
+            IsVisible = false;
+            
+            if (m_animator != null)
+            {
+                // 从第0帧播放HideLoading动画
+                m_animator.Play(STATE_HIDE_LOADING, 0, 0f);
                 
-                // 通过设置bool参数触发退出动画
-                if (m_animator != null)
+                // 停止之前的协程（如果有）
+                if (m_hideCoroutine != null)
                 {
-                    m_animator.SetBool(ANIM_PARAM_HIDE_LOADING, true);
-                    m_animator.SetBool(ANIM_PARAM_SHOW_LOADING, false);
+                    StopCoroutine(m_hideCoroutine);
                 }
-                else
-                {
-                    // 如果没有动画组件，直接隐藏
-                    OnHideAnimationComplete();
-                }
+                
+                // 启动协程等待动画结束后清理
+                m_hideCoroutine = StartCoroutine(WaitForHideAnimationComplete());
+            }
+            else
+            {
+                // 无Animator时直接完成清理
+                CompleteHideCleanup();
             }
         }
         
         /// <summary>
-        /// 隐藏动画完成后的回调处理
-        /// 此方法应由动画状态机在动画结束时调用
+        /// 等待HideLoading动画播放完成，然后执行清理
         /// </summary>
-        public void OnHideAnimationComplete()
+        private IEnumerator WaitForHideAnimationComplete()
         {
-            IsVisible = false; 
-            // 重置动画状态
+            // 等待一帧确保Animator状态已更新到HideLoading
+            yield return null;
+            
+            // 获取HideLoading动画的实际长度
+            float animLength = 1f; // 默认兜底值
             if (m_animator != null)
             {
-                m_animator.SetBool(ANIM_PARAM_HIDE_LOADING, false);
+                AnimatorStateInfo stateInfo = m_animator.GetCurrentAnimatorStateInfo(0);
+                if (stateInfo.IsName(STATE_HIDE_LOADING))
+                {
+                    animLength = stateInfo.length;
+                }
             }
             
-            // 通知控制器加载界面已隐藏
+            // 等待动画播放完成（使用unscaled时间，确保Time.timeScale=0时也能完成）
+            yield return new WaitForSecondsRealtime(animLength);
+            
+            CompleteHideCleanup();
+            m_hideCoroutine = null;
+        }
+        
+        /// <summary>
+        /// 隐藏动画完成后的清理逻辑
+        /// 将GameObject设为inactive，通知Controller
+        /// </summary>
+        private void CompleteHideCleanup()
+        {
+            Log.Info(LOG_MODULE, "加载界面隐藏动画完成，执行清理");
+            
+            // 通知控制器（控制器会将GameObject设为inactive）
             if (m_controller != null)
             {
-                var loadingController = m_controller as LoadingScreenController;
-                if (loadingController != null)
-                {
-                    loadingController.OnHideAnimationComplete();
-                }
+                m_controller.OnHideAnimationComplete();
             }
         }
     
