@@ -4,7 +4,7 @@ using MyGame.Events;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-namespace MyGame.Control
+namespace MyGame.Item
 {
     /// <summary>
     /// 碎石地形管理器

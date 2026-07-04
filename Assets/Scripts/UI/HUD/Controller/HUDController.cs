@@ -1,13 +1,15 @@
-using UnityEngine;
 using Logger;
+using MyGame.Events;
+using MyGame.Item;
 using MyGame.UI.HUD.Model;
 using MyGame.UI.HUD.View;
-using MyGame.Events;
+using MyGame.Data;
+using UnityEngine;
 
 namespace MyGame.UI.HUD.Controller
 {
     /// <summary>
-    /// HUD控制器，负责处理HUD的逻辑和事件响应
+    /// HUD控制器，负责处理HUD逻辑和事件响应
     /// </summary>
     public class HUDController : BaseController<HUDView, HUDModel>
     {
@@ -21,24 +23,28 @@ namespace MyGame.UI.HUD.Controller
             if (!IsInitialized)
             {
                 Log.Info(LOG_MODULE, "初始化HUD控制器");
-                
-                // 创建并初始化模型
+
                 CreateAndInitializeModel();
-                
-                // 调用基类初始化
                 base.Initialize();
             }
         }
 
         /// <summary>
-        /// 初始化逻辑
+        /// 初始化逻辑，注册事件监听
         /// </summary>
         protected override void OnInitialize()
         {
             base.OnInitialize();
-            
-            // 注册事件监听
             RegisterEvents();
+        }
+
+        /// <summary>
+        /// 清理逻辑，注销事件监听
+        /// </summary>
+        protected override void OnCleanup()
+        {
+            UnregisterEvents();
+            base.OnCleanup();
         }
 
         /// <summary>
@@ -46,49 +52,70 @@ namespace MyGame.UI.HUD.Controller
         /// </summary>
         private void RegisterEvents()
         {
-            // 这里可以注册需要的游戏事件
-            // GameEvents.OnSomeEvent += HandleSomeEvent;
+            GameEvents.OnAnchorCountChanged += OnAnchorCountChanged;
+            GameEvents.OnOxygenChanged += OnOxygenChanged;
         }
 
         /// <summary>
-        /// 取消注册事件监听
+        /// 注销事件监听
         /// </summary>
         private void UnregisterEvents()
         {
-            // 这里可以取消注册游戏事件
-            // GameEvents.OnSomeEvent -= HandleSomeEvent;
+            GameEvents.OnAnchorCountChanged -= OnAnchorCountChanged;
+            GameEvents.OnOxygenChanged -= OnOxygenChanged;
         }
 
         /// <summary>
-        /// 清理控制器资源
+        /// 设置视图引用并初始化锚图标
         /// </summary>
-        public override void Cleanup()
+        public override void SetView(HUDView view)
         {
-            if (IsInitialized)
+            base.SetView(view);
+            if (m_view != null)
             {
-                Log.Info(LOG_MODULE, "清理HUD控制器资源");
-                
-                // 取消注册事件
-                UnregisterEvents();
-                
-                // 清理模型资源
-                if (m_model != null)
-                {
-                    m_model.Cleanup();
-                    m_model = null;
-                }
-                
-                // 调用基类清理
-                base.Cleanup();
+                int maxAnchors = GetMaxAnchorCount();
+                m_view.InitializeAnchorIcons(maxAnchors, maxAnchors);
             }
         }
 
         /// <summary>
-        /// 清理逻辑
+        /// 获取最大锚数量（优先从关卡配置读取，兜底从AnchorManager读取）
         /// </summary>
-        protected override void OnCleanup()
+        private int GetMaxAnchorCount()
         {
-            base.OnCleanup();
+            if (LevelSession.MaxAnchors > 0) return LevelSession.MaxAnchors;
+
+            var anchorManager = Object.FindObjectOfType<AnchorManager>();
+            if (anchorManager != null) return anchorManager.MaxAnchorCount;
+
+            Log.Warning(LOG_MODULE, "未找到关卡配置或AnchorManager，使用默认锚数量: 2");
+            return 2;
+        }
+
+        /// <summary>
+        /// 锚数量变更回调，通知视图更新
+        /// </summary>
+        /// <param name="remaining">剩余数量</param>
+        /// <param name="max">最大数量</param>
+        private void OnAnchorCountChanged(int remaining, int max)
+        {
+            if (m_view != null)
+            {
+                m_view.UpdateAnchorIcons(remaining, max);
+            }
+        }
+
+        /// <summary>
+        /// 氧气值变更回调，通知视图更新氧气条
+        /// </summary>
+        /// <param name="current">当前氧气值</param>
+        /// <param name="max">最大氧气值</param>
+        private void OnOxygenChanged(float current, float max)
+        {
+            if (m_view != null)
+            {
+                m_view.UpdateOxygenBar(current, max);
+            }
         }
     }
 }

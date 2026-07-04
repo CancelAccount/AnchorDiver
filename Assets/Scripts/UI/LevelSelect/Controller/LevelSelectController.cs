@@ -1,4 +1,5 @@
 using Logger;
+using MyGame.Control;
 using MyGame.Data;
 using MyGame.Events;
 using MyGame.Managers;
@@ -109,6 +110,12 @@ namespace MyGame.UI.LevelSelect.Controller
 
             LevelData level = m_model.Levels[index];
             Log.Info(LOG_MODULE, $"进入关卡: {level.levelName} → 加载场景 {level.sceneName}");
+
+            // 记录当前关卡ID（胜利时用于解锁下一关）
+            LevelProgress.CurrentLevelId = level.levelId;
+
+            // 传递关卡参数（氧气/锚上限等）
+            LevelSession.SetCurrentLevel(level);
 
             // 切换到GamePlay输入模式（关卡场景需要玩家操作）
             InputManager.Instance.SwitchToGamePlayMode();

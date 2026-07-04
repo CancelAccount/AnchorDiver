@@ -2,7 +2,7 @@ using Logger;
 using MyGame.Events;
 using UnityEngine;
 
-namespace MyGame.Control
+namespace MyGame.Item
 {
     /// <summary>
     /// 危险区域触发器

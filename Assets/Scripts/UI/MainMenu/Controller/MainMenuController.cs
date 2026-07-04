@@ -191,8 +191,7 @@ namespace MyGame.UI.MainMenu.Controller
         /// </summary>
         public void OnStartGame()
         {
-            // 触发游戏开始事件
-            GameEvents.TriggerGameStart();
+            GameEvents.TriggerSceneLoadStart("Level Select");
         }
 
         /// <summary>

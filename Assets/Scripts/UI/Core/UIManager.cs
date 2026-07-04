@@ -278,7 +278,7 @@ namespace MyGame.Managers
                 if (InputManager.Instance != null)
                 {
                     // 对于需要完全UI控制的界面，切换到UI模式
-                    if (state != UIType.Console && state != UIType.Loading)
+                    if (state != UIType.Console && state != UIType.Loading && state != UIType.HUD)
                     {
                         InputManager.Instance.SwitchToUIMode();
                     }

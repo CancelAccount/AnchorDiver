@@ -1,9 +1,10 @@
 using Logger;
+using MyGame.Control;
 using MyGame.Events;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-namespace MyGame.Managers
+namespace MyGame.Item
 {
     /// <summary>
     /// 关卡通重生管理器（挂载在CheckPoint Tilemap上）
@@ -28,6 +29,8 @@ namespace MyGame.Managers
         private Tilemap m_tilemap;
         private Vector3Int m_currentCheckPointCell;
         private Color m_defaultTileColor = Color.white;
+        private AnchorManager m_anchorManager;
+        private OxygenManager m_oxygenManager;
         private const string LOG_MODULE = "CheckPoint";
 
         #region 属性
@@ -106,6 +109,7 @@ namespace MyGame.Managers
 
         /// <summary>
         /// 玩家进入存档点Tile区域时，激活离玩家最近的存档点tile
+        /// 因为存档点分布稀疏，对密集分布的tile不要用这种算法
         /// </summary>
         private void OnTriggerEnter2D(Collider2D other)
         {
@@ -121,6 +125,26 @@ namespace MyGame.Managers
             // 激活新存档点
             m_currentCheckPointCell = nearest;
             HighlightCell(m_currentCheckPointCell);
+
+            // 补充锚至上限
+            if (m_anchorManager == null)
+            {
+                m_anchorManager = FindFirstObjectByType<AnchorManager>();
+            }
+            if (m_anchorManager != null)
+            {
+                m_anchorManager.RefillAnchors();
+            }
+
+            // 补充氧气至上限
+            if (m_oxygenManager == null)
+            {
+                m_oxygenManager = FindFirstObjectByType<OxygenManager>();
+            }
+            if (m_oxygenManager != null)
+            {
+                m_oxygenManager.RefillOxygen();
+            }
 
             Log.Info(LOG_MODULE, $"激活存档点: {m_currentCheckPointCell}");
         }
@@ -142,6 +166,27 @@ namespace MyGame.Managers
 
             Vector3 respawnPos = m_tilemap.GetCellCenterWorld(m_currentCheckPointCell);
             m_playerTransform.position = respawnPos;
+
+            // 补充锚至上限
+            if (m_anchorManager == null)
+            {
+                m_anchorManager = FindFirstObjectByType<AnchorManager>();
+            }
+            if (m_anchorManager != null)
+            {
+                m_anchorManager.RefillAnchors();
+            }
+
+            // 补充氧气至上限
+            if (m_oxygenManager == null)
+            {
+                m_oxygenManager = FindFirstObjectByType<OxygenManager>();
+            }
+            if (m_oxygenManager != null)
+            {
+                m_oxygenManager.RefillOxygen();
+            }
+
             Log.Info(LOG_MODULE, $"玩家已重生至存档点: {m_currentCheckPointCell}");
         }
 

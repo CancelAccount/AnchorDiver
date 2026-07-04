@@ -107,7 +107,17 @@ namespace MyGame.UI.LevelSelect.View
                 if (buttonObj.TryGetComponent<Button>(out var button))
                 {
                     m_levelButtons.Add(button);
-                    button.onClick.AddListener(() => OnLevelButtonClicked(index));
+
+                    // 锁定关卡不可交互
+                    if (level.IsUnlocked)
+                    {
+                        button.interactable = true;
+                        button.onClick.AddListener(() => OnLevelButtonClicked(index));
+                    }
+                    else
+                    {
+                        button.interactable = false;
+                    }
                 }
 
                 // 设置按钮上的文本（兼容 UGUI Text 和 TMP TextMeshProUGUI）

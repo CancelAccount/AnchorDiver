@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Logger;
+using MyGame.Data;
+using MyGame.UI;
 
 namespace MyGame.Managers
 {
@@ -14,6 +16,10 @@ namespace MyGame.Managers
     public class GameManager : Singleton<GameManager>
     {
         private const string LOG_MODULE = LogModules.GAMEMANAGER;
+
+        [Header("场景名称")]
+        [Tooltip("选关场景名称")]
+        [SerializeField] private string m_levelSelectScene = "Level Select";
 
         #region 字段与属性
 
@@ -118,11 +124,11 @@ namespace MyGame.Managers
             // 定义合法状态转换关系：左边的状态可以转换到右边的状态
             var validTransitions = new Dictionary<GameState, GameState[]>
             {
-                [GameState.Init] = new[] { GameState.Menu },
-                [GameState.Menu] = new[] { GameState.Playing },
-                [GameState.Playing] = new[] { GameState.Paused, GameState.GameOver },
-                [GameState.Paused] = new[] { GameState.Playing, GameState.GameOver, GameState.Menu },
-                [GameState.GameOver] = new[] { GameState.Menu }
+                [GameState.Init] = new[] { GameState.Menu, GameState.Playing }, // 加上Playing方便直接从游戏场景测试
+                [GameState.Menu] = new[] { GameState.Menu,GameState.Playing },
+                [GameState.Playing] = new[] { GameState.Playing, GameState.Paused, GameState.GameOver },
+                [GameState.Paused] = new[] { GameState.Paused, GameState.Playing, GameState.GameOver, GameState.Menu },
+                [GameState.GameOver] = new[] { GameState.GameOver, GameState.Menu }
             };
 
             // 检查当前状态是否有合法的转换到下一个状态
@@ -162,7 +168,6 @@ namespace MyGame.Managers
         {
             if (!TryChangeState(GameState.Playing))
                 return;
-            // TODO: 初始化关卡、玩家等
             Time.timeScale = 1f;
             Log.Info(LOG_MODULE, "游戏开始", this);
         }
@@ -192,15 +197,44 @@ namespace MyGame.Managers
 
         /// <summary>
         /// 游戏结束，进入GameOver状态。
+        /// 胜利时解锁下一关并返回选关；失败时由DeathOverlayController处理。
         /// </summary>
         /// <param name="isWin">true为胜利，false为失败</param>
         public void GameOver(bool isWin)
         {
             if (!TryChangeState(GameState.GameOver))    
                 return;
-            Time.timeScale = 0f;
+
             Log.Info(LOG_MODULE, $"游戏结束，胜利：{isWin}", this);
-            // TODO: 显示结算界面等
+
+            if (isWin)
+            {
+                HandleWin();
+            }
+            else
+            {
+                Time.timeScale = 0f;
+            }
+        }
+
+        /// <summary>
+        /// 胜利处理：解锁下一关 + 返回选关界面
+        /// </summary>
+        private void HandleWin()
+        {
+            int currentLevelId = LevelProgress.CurrentLevelId;
+            int nextLevelId = currentLevelId + 1;
+
+            LevelProgress.UnlockLevel(nextLevelId);
+            Log.Info(LOG_MODULE, $"关卡 {currentLevelId} 完成，已解锁关卡 {nextLevelId}");
+
+            // 隐藏HUD（GlobalUI下的面板不会随场景销毁）
+            GameEvents.TriggerMenuShow(UIType.HUD, false);
+
+            // 切换回Menu状态，再加载选关场景
+            TryChangeState(GameState.Menu);
+            Time.timeScale = 1f;
+            SceneSwitcher.RequestLoadScene(m_levelSelectScene);
         }
 
         #endregion

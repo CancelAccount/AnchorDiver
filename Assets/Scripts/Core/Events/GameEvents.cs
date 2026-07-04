@@ -224,6 +224,35 @@ namespace MyGame.Events
 
         #endregion
 
+        #region 锚事件
+
+        /// <summary>
+        /// 锚数量变更事件（参数：剩余数量, 最大数量）
+        /// </summary>
+        public static event Action<int, int> OnAnchorCountChanged;
+
+        public static void TriggerAnchorCountChanged(int remaining, int max)
+        {
+            Log.Info(module, $"锚数量变更: {remaining}/{max}");
+            OnAnchorCountChanged?.Invoke(remaining, max);
+        }
+
+        #endregion
+
+        #region 氧气事件
+
+        /// <summary>
+        /// 氧气值变更事件（参数：当前值, 最大值）
+        /// </summary>
+        public static event Action<float, float> OnOxygenChanged;
+
+        public static void TriggerOxygenChanged(float current, float max)
+        {
+            OnOxygenChanged?.Invoke(current, max);
+        }
+
+        #endregion
+
         #region 重生事件
 
         /// <summary>

@@ -1,5 +1,6 @@
 using Logger;
 using MyGame.Events;
+using MyGame.Item;
 using MyGame.Managers;
 using UnityEngine;
 
@@ -39,6 +40,7 @@ namespace MyGame.Control
         private float m_diveCooldownTimer;
         private bool m_isDiveReady = true;
         private bool m_isDead;
+        private AnchorManager m_anchorManager;
 
         private const string LOG_MODULE = LogModules.PLAYER;
 
@@ -91,6 +93,10 @@ namespace MyGame.Control
         {
             m_inputActions = InputManager.Instance.InputActions;
             InputManager.Instance.SwitchToGamePlayMode();
+            GameEvents.TriggerGameStart();
+
+            // 获取锚管理器引用
+            m_anchorManager = FindFirstObjectByType<AnchorManager>();
         }
 
         /// <summary>
@@ -102,6 +108,7 @@ namespace MyGame.Control
 
             UpdateDiveCooldown();
             HandleDiveInput();
+            HandleInteractInput();
         }
 
         /// <summary>
@@ -236,6 +243,24 @@ namespace MyGame.Control
             {
                 if (m_isDiveReady) return 1f;
                 return 1f - (m_diveCooldownTimer / m_diveCooldown);
+            }
+        }
+
+        #endregion
+
+        #region 锚召唤
+
+        /// <summary>
+        /// 检测Interact键并召唤锚
+        /// </summary>
+        private void HandleInteractInput()
+        {
+            if (m_inputActions == null) return;
+            if (m_anchorManager == null) return;
+
+            if (m_inputActions.GamePlay.Interact.triggered)
+            {
+                m_anchorManager.TrySummonAnchor();
             }
         }
 

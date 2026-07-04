@@ -18,8 +18,26 @@ MonoBehaviour:
     sceneName: level_1
     description: 
     isUnlockedByDefault: 1
+    maxOxygen: 15
+    maxAnchors: 2
   - levelId: 1002
     levelName: "\u8BF7\u8F93\u5165\u6587\u672C"
-    sceneName: level_1
+    sceneName: level_2
     description: 
     isUnlockedByDefault: 0
+    maxOxygen: 30
+    maxAnchors: 2
+  - levelId: 1003
+    levelName: "\u968F\u4FBF\u4E00\u4E2A\u540D\u5B57"
+    sceneName: level_3
+    description: 
+    isUnlockedByDefault: 0
+    maxOxygen: 30
+    maxAnchors: 2
+  - levelId: 1004
+    levelName: "\u4E00\u4E2A\u5173\u5361"
+    sceneName: level_4
+    description: 
+    isUnlockedByDefault: 0
+    maxOxygen: 30
+    maxAnchors: 2

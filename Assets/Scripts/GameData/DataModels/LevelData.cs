@@ -1,4 +1,5 @@
 using System;
+using MyGame.Control;
 using UnityEngine;
 
 namespace MyGame.Data
@@ -26,5 +27,20 @@ namespace MyGame.Data
 
         [Tooltip("是否默认解锁")]
         public bool isUnlockedByDefault = false;
+
+        [Header("关卡参数")]
+        [Tooltip("最大氧气值（秒）")]
+        public float maxOxygen = 30f;
+
+        [Tooltip("最大锚数量")]
+        public int maxAnchors = 2;
+
+        /// <summary>
+        /// 运行时是否已解锁（检查PlayerPrefs + 默认解锁状态）
+        /// </summary>
+        public bool IsUnlocked
+        {
+            get { return LevelProgress.IsLevelUnlocked(levelId, isUnlockedByDefault); }
+        }
     }
 }
