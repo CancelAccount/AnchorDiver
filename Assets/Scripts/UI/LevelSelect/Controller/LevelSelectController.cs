@@ -13,7 +13,7 @@ namespace MyGame.UI.LevelSelect.Controller
     /// 选关界面控制器
     /// 负责协调关卡数据加载和场景跳转，点击关卡按钮直接进入
     /// </summary>
-    public class LevelSelectController : MonoBehaviour
+    public class LevelSelectController : BaseController<LevelSelectView, LevelSelectModel>
     {
         #region 配置
 
@@ -24,17 +24,6 @@ namespace MyGame.UI.LevelSelect.Controller
         [Header("场景名称")]
         [Tooltip("主菜单场景名称")]
         [SerializeField] private string m_mainMenuScene = "MainMenu";
-
-        #endregion
-
-        #region MVC组件
-
-        [Header("MVC组件")]
-        [Tooltip("选关模型")]
-        [SerializeField] private LevelSelectModel m_model;
-
-        [Tooltip("选关视图")]
-        [SerializeField] private LevelSelectView m_view;
 
         private const string LOG_MODULE = LogModules.LEVELSELECT;
 
@@ -48,6 +37,7 @@ namespace MyGame.UI.LevelSelect.Controller
         private void Awake()
         {
             InitializeMVCComponents();
+            Initialize();
         }
 
         #endregion
@@ -59,12 +49,8 @@ namespace MyGame.UI.LevelSelect.Controller
         /// </summary>
         private void InitializeMVCComponents()
         {
-            // 初始化模型
-            m_model ??= new LevelSelectModel();
-            if (!m_model.IsInitialized)
-            {
-                m_model.Initialize();
-            }
+            // 创建并初始化Model
+            CreateAndInitializeModel();
 
             // 加载关卡配置数据
             if (m_levelListConfig != null)
@@ -72,7 +58,7 @@ namespace MyGame.UI.LevelSelect.Controller
                 m_model.LoadLevelsFromConfig(m_levelListConfig.levels);
             }
 
-            // 初始化视图
+            // 查找View引用
             if (m_view == null)
             {
                 m_view = GetComponentInChildren<LevelSelectView>(true);
@@ -80,10 +66,8 @@ namespace MyGame.UI.LevelSelect.Controller
 
             if (m_view != null)
             {
-                m_view.BindController(this);
-                // 生成关卡按钮
+                // 生成关卡按钮并显示面板
                 m_view.PopulateLevelButtons(m_model.Levels);
-                // 显示选关面板（BaseView.Awake默认隐藏，需显式调用Show）
                 m_view.Show();
             }
             else
@@ -91,6 +75,13 @@ namespace MyGame.UI.LevelSelect.Controller
                 Log.Warning(LOG_MODULE, "LevelSelectView 未找到");
             }
         }
+
+        #endregion
+
+        #region Model事件绑定（预留，暂无View更新需求）
+
+        // LevelSelect的View由点击事件驱动更新，Model属性变更暂不需要主动推送，
+        // 若后续需要响应式更新，在此订阅 m_model.OnPropertyChanged
 
         #endregion
 

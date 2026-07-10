@@ -9,9 +9,9 @@ namespace MyGame.UI.DeathOverlay.Controller
     /// <summary>
     /// 死亡覆盖层控制器
     /// 监听游戏结束事件，失败时显示重开提示
-    /// 实际重开逻辑由 GameManager 通过 InputSystem 的 Restart Action 统一处理
+    /// 此Controller无独立Model（仅有View显隐逻辑），使用非泛型BaseController
     /// </summary>
-    public class DeathOverlayController : MonoBehaviour
+    public class DeathOverlayController : BaseController
     {
         #region MVC组件
 
@@ -31,15 +31,22 @@ namespace MyGame.UI.DeathOverlay.Controller
         private void Awake()
         {
             InitializeView();
+            Initialize();
+        }
 
+        /// <summary>
+        /// 启用时注册事件
+        /// </summary>
+        private void OnEnable()
+        {
             GameEvents.OnGameOver += OnGameOver;
             GameEvents.OnQuickRestart += OnQuickRestart;
         }
 
         /// <summary>
-        /// 注销事件监听
+        /// 禁用时注销事件
         /// </summary>
-        private void OnDestroy()
+        private void OnDisable()
         {
             GameEvents.OnGameOver -= OnGameOver;
             GameEvents.OnQuickRestart -= OnQuickRestart;
@@ -47,7 +54,7 @@ namespace MyGame.UI.DeathOverlay.Controller
 
         #endregion
 
-        #region MVC组件初始化
+        #region View初始化
 
         /// <summary>
         /// 初始化视图引用
@@ -57,11 +64,6 @@ namespace MyGame.UI.DeathOverlay.Controller
             if (m_view == null)
             {
                 m_view = GetComponentInChildren<DeathOverlayView>(true);
-            }
-
-            if (m_view != null)
-            {
-                m_view.BindController(this);
             }
         }
 
@@ -79,16 +81,13 @@ namespace MyGame.UI.DeathOverlay.Controller
 
             Log.Info(LOG_MODULE, "玩家死亡，显示重开提示");
 
-            // 恢复时间流速，确保UI可正常交互
             Time.timeScale = 1f;
 
-            // 切换到UI输入模式，确保PlayerController不再响应输入
             if (InputManager.Instance != null)
             {
                 InputManager.Instance.SwitchToUIMode();
             }
 
-            // 显示死亡面板
             if (m_view != null)
             {
                 m_view.Show();
@@ -102,13 +101,11 @@ namespace MyGame.UI.DeathOverlay.Controller
         {
             Log.Info(LOG_MODULE, "快速重开，隐藏死亡面板");
 
-            // 隐藏死亡面板
             if (m_view != null)
             {
                 m_view.Hide();
             }
 
-            // 切换回GamePlay输入模式
             if (InputManager.Instance != null)
             {
                 InputManager.Instance.SwitchToGamePlayMode();

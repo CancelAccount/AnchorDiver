@@ -1,20 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using UnityEngine;
+using MyGame.UI;
 using Logger;
 
 namespace MyGame.DevTool
 {
     /// <summary>
     /// 调试命令模型，负责管理所有调试命令的注册、查找和执行
+    /// 继承BaseModel以遵循MVC规范
     /// </summary>
-    public class DebugCommandModel
+    public class DebugCommandModel : BaseModel
     {
         private const string LOG_MODULE = LogModules.DEBUGCONSOLE;
+
         // 命令字典：键为命令名称，值为(执行方法, 描述)
         private readonly Dictionary<string, (Action action, string description)> _commands = new();
-        
+
         /// <summary>
         /// 初始化所有命令
         /// </summary>
@@ -27,17 +29,16 @@ namespace MyGame.DevTool
                 var attr = method.GetCustomAttribute<DebugCommand>();
                 if (attr != null)
                 {
-                    // 将方法添加到命令字典
                     _commands[attr.CommandName] = (
                         () => method.Invoke(null, null),
                         attr.Description
                     );
                 }
             }
-            
+
             Log.Info(LOG_MODULE, "调试命令初始化完成，共加载了" + _commands.Count + "个命令");
         }
-        
+
         /// <summary>
         /// 执行指定的命令
         /// </summary>
@@ -60,7 +61,7 @@ namespace MyGame.DevTool
             }
             return false;
         }
-        
+
         /// <summary>
         /// 获取所有命令及其描述
         /// </summary>
@@ -74,7 +75,7 @@ namespace MyGame.DevTool
             }
             return commandDescriptions;
         }
-        
+
         /// <summary>
         /// 检查命令是否存在
         /// </summary>

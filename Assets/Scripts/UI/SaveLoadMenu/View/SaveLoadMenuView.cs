@@ -22,7 +22,7 @@ namespace MyGame.UI.SaveLoad.View
         void SetSelected(bool selected);
         string SlotName { get; }
     }
-    
+
     /// <summary>
     /// 存档槽UI的抽象基类
     /// 提供存档槽UI的通用功能
@@ -34,11 +34,11 @@ namespace MyGame.UI.SaveLoad.View
         [SerializeField] protected Text timestampText;
         [SerializeField] protected Text progressText;
         [SerializeField] protected Button slotButton;
-        
+
         protected SaveSlotInfo _slotInfo;
         protected SaveLoadMenuView _view;
         protected bool _isSelected = false;
-        
+
         /// <summary>
         /// 初始化存档槽UI
         /// </summary>
@@ -48,7 +48,7 @@ namespace MyGame.UI.SaveLoad.View
         {
             _slotInfo = slotInfo;
             _view = view;
-            
+
             if (slotButton != null)
             {
                 slotButton.onClick.AddListener(HandleSlotButtonClick);
@@ -98,6 +98,7 @@ namespace MyGame.UI.SaveLoad.View
         
         /// <summary>
         /// 处理存档槽按钮点击事件
+        /// 通知View层处理，View层再通过事件系统或Controller路由
         /// </summary>
         protected virtual void HandleSlotButtonClick()
         {
@@ -125,9 +126,9 @@ namespace MyGame.UI.SaveLoad.View
     }
     
     /// <summary>
-    /// 存档菜单视图基类
+    /// 存档菜单视图
     /// 负责显示存档菜单的UI元素并处理用户交互
-    /// 继承自BaseView以保持架构一致性
+    /// 所有Model数据访问均通过 Controller 中转，不直接持有Model引用
     /// </summary>
     public class SaveLoadMenuView : BaseView<SaveLoadMenuController>
     {
@@ -141,38 +142,21 @@ namespace MyGame.UI.SaveLoad.View
         [SerializeField] protected Button loadButton;
         [SerializeField] protected Button deleteButton;
         [SerializeField] protected Button cancelButton;
-        
+
         [Header("Main Options")]
         [SerializeField] protected Button newGameButton;
         [SerializeField] protected Button backButton;
 
-        protected SaveLoadMenuModel _model;
         protected List<ISaveSlotUI> _saveSlotUIs = new();
 
         private const string LOG_MODULE = LogModules.SAVELOAD;
-        
-        /// <summary>
-        /// 控制器组件
-        /// 重写基类Controller属性以提供对具体类型的访问
-        /// </summary>
-        public SaveLoadMenuController Controller
-        {
-            get { return m_controller; }
-            set { BindController(value); }
-        }
-        
-        /// <summary>
-        /// 模型组件
-        /// </summary>
-        public SaveLoadMenuModel Model
-        {
-            get { return _model; }
-            set { SetModel(value); }
-        }
-        
+
+        // 用于跟踪异步加载操作
+        private List<AsyncOperationHandle<GameObject>> _prefabLoadHandles = new();
+
         /// <summary>
         /// 初始化视图
-        /// 重写基类Initialize方法
+        /// 重写基类Initialize方法，绑定按钮事件并初始化UI状态
         /// </summary>
         public override void Initialize()
         {
@@ -180,126 +164,77 @@ namespace MyGame.UI.SaveLoad.View
             BindButtonEvents();
             HideSaveOptionsMenu();
         }
-        
+
         /// <summary>
         /// 尝试自动绑定控制器
+        /// View和Controller挂载在同一GameObject上，使用GetComponent查找
         /// </summary>
         protected override void TryBindController()
         {
-            // 尝试查找控制器组件
-            var controller = GetComponentInParent<SaveLoadMenuController>();
+            var controller = GetComponent<SaveLoadMenuController>();
             if (controller != null)
             {
                 BindController(controller);
             }
         }
-        
-        /// <summary>
-        /// 控制器绑定后的回调
-        /// </summary>
-        protected override void OnControllerBound()
-        {
-            // 当控制器绑定时，设置模型引用
-            if (m_controller != null && m_controller.Model != null)
-            {
-                Model = m_controller.Model;
-            }
-        }
-        
-        /// <summary>
-        /// 控制器解绑后的回调
-        /// </summary>
-        protected override void OnControllerUnbound()
-        {
-            // 当控制器解绑时，清除模型引用
-            if (_model != null)
-            {
-                UnsubscribeFromModelEvents();
-                _model = null;
-            }
-        }
-        
-        /// <summary>
-        /// 设置模型组件
-        /// </summary>
-        /// <param name="model">模型实例</param>
-        public virtual void SetModel(SaveLoadMenuModel model)
-        {
-            if (_model != null)
-            {
-                UnsubscribeFromModelEvents();
-            }
-            
-            _model = model;
-            
-            if (_model != null)
-            {
-                SubscribeToModelEvents();
-            }
-            
-            UpdateView();
-        }
-        
+
         /// <summary>
         /// 更新视图显示
+        /// 由 Controller 在 Model 数据变更时调用
         /// </summary>
         public virtual void UpdateView()
         {
             CreateSaveSlotUIs();
             UpdateSaveOptionsButtonStates();
         }
-        
-        // 用于跟踪异步加载操作
-        private List<AsyncOperationHandle<GameObject>> _prefabLoadHandles = new();
-        
+
         /// <summary>
         /// 创建存档槽UI
         /// 使用Addressable Assets异步加载预制件
+        /// 数据通过 Controller 查询方法获取，不直接访问Model
         /// </summary>
         protected virtual async void CreateSaveSlotUIs()
         {
-            if (_model == null || saveSlotsContainer == null)
+            if (m_controller == null || saveSlotsContainer == null)
                 return;
-            
-            // 获取SaveLoadMenuConfig
-            SaveLoadMenuConfig config = null;
-            if (m_controller != null)
-            {
-                config = m_controller.Config;
-            }
-            
+
+            var config = m_controller.Config;
             if (config == null)
             {
                 Log.Error(LOG_MODULE, "SaveLoadMenuConfig is not set in controller");
                 return;
             }
-            
+
+            var saveSlots = m_controller.GetSaveSlots();
+            if (saveSlots == null)
+                return;
+
             // 清理现有存档槽UI和加载句柄
             ClearSaveSlotUIs();
             ClearLoadHandles();
-            
+
             try
             {
                 // 异步加载存档槽预制件
                 AsyncOperationHandle<GameObject> prefabLoadHandle = Addressables.LoadAssetAsync<GameObject>(config.SaveSlotPrefabAddress);
                 _prefabLoadHandles.Add(prefabLoadHandle);
-                
-                // 等待加载完成
+
                 await prefabLoadHandle.Task;
-                
+
                 if (prefabLoadHandle.Status == AsyncOperationStatus.Succeeded && prefabLoadHandle.Result != null)
                 {
                     GameObject saveSlotPrefab = prefabLoadHandle.Result;
-                    
+                    string selectedSlotName = m_controller.GetSelectedSaveSlotName();
+
                     // 创建新的存档槽UI
-                    foreach (var slotInfo in _model.SaveSlots)
+                    foreach (var slotInfo in saveSlots)
                     {
                         GameObject slotGO = Instantiate(saveSlotPrefab, saveSlotsContainer);
-                        
+
                         if (slotGO.TryGetComponent<ISaveSlotUI>(out var slotUI))
                         {
                             slotUI.Initialize(slotInfo, this);
-                            slotUI.SetSelected(_model.SelectedSaveSlotName == slotInfo.SlotName);
+                            slotUI.SetSelected(selectedSlotName == slotInfo.SlotName);
                             _saveSlotUIs.Add(slotUI);
                         }
                     }
@@ -314,7 +249,7 @@ namespace MyGame.UI.SaveLoad.View
                 Log.Error(LOG_MODULE, "加载存档槽预制件失败，错误信息: " + e.Message);
             }
         }
-        
+
         /// <summary>
         /// 清理异步加载句柄
         /// </summary>
@@ -329,7 +264,7 @@ namespace MyGame.UI.SaveLoad.View
             }
             _prefabLoadHandles.Clear();
         }
-        
+
         /// <summary>
         /// 清理存档槽UI
         /// </summary>
@@ -342,37 +277,41 @@ namespace MyGame.UI.SaveLoad.View
                     Destroy(((MonoBehaviour)slotUI).gameObject);
                 }
             }
-            
+
             _saveSlotUIs.Clear();
         }
-        
+
         /// <summary>
         /// 更新存档选项按钮状态
+        /// 数据通过 Controller 查询方法获取
         /// </summary>
         protected virtual void UpdateSaveOptionsButtonStates()
         {
-            if (_model == null)
+            if (m_controller == null)
                 return;
-            
-            bool hasSelectedSlot = !string.IsNullOrEmpty(_model.SelectedSaveSlotName);
-            bool hasSaveData = _model.SelectedSaveData != null;
-            
+
+            string selectedSlotName = m_controller.GetSelectedSaveSlotName();
+            SaveData selectedSaveData = m_controller.GetSelectedSaveData();
+
+            bool hasSelectedSlot = !string.IsNullOrEmpty(selectedSlotName);
+            bool hasSaveData = selectedSaveData != null;
+
             if (saveButton != null)
             {
                 saveButton.interactable = hasSelectedSlot;
             }
-            
+
             if (loadButton != null)
             {
                 loadButton.interactable = hasSaveData;
             }
-            
+
             if (deleteButton != null)
             {
                 deleteButton.interactable = hasSaveData;
             }
         }
-        
+
         /// <summary>
         /// 绑定按钮事件
         /// </summary>
@@ -382,33 +321,33 @@ namespace MyGame.UI.SaveLoad.View
             {
                 saveButton.onClick.AddListener(HandleSaveButtonClick);
             }
-            
+
             if (loadButton != null)
             {
                 loadButton.onClick.AddListener(HandleLoadButtonClick);
             }
-            
+
             if (deleteButton != null)
             {
                 deleteButton.onClick.AddListener(HandleDeleteButtonClick);
             }
-            
+
             if (cancelButton != null)
             {
                 cancelButton.onClick.AddListener(HandleCancelButtonClick);
             }
-            
+
             if (newGameButton != null)
             {
                 newGameButton.onClick.AddListener(HandleNewGameButtonClick);
             }
-            
+
             if (backButton != null)
             {
                 backButton.onClick.AddListener(HandleBackButtonClick);
             }
         }
-        
+
         /// <summary>
         /// 解绑按钮事件
         /// </summary>
@@ -418,57 +357,33 @@ namespace MyGame.UI.SaveLoad.View
             {
                 saveButton.onClick.RemoveListener(HandleSaveButtonClick);
             }
-            
+
             if (loadButton != null)
             {
                 loadButton.onClick.RemoveListener(HandleLoadButtonClick);
             }
-            
+
             if (deleteButton != null)
             {
                 deleteButton.onClick.RemoveListener(HandleDeleteButtonClick);
             }
-            
+
             if (cancelButton != null)
             {
                 cancelButton.onClick.RemoveListener(HandleCancelButtonClick);
             }
-            
+
             if (newGameButton != null)
             {
                 newGameButton.onClick.RemoveListener(HandleNewGameButtonClick);
             }
-            
+
             if (backButton != null)
             {
                 backButton.onClick.RemoveListener(HandleBackButtonClick);
             }
         }
-        
-        /// <summary>
-        /// 订阅模型事件
-        /// </summary>
-        protected virtual void SubscribeToModelEvents()
-        {
-            if (_model != null)
-            {
-                _model.OnSaveSlotsUpdated += OnSaveSlotsUpdated;
-                _model.OnSelectedSaveSlotChanged += OnSelectedSaveSlotChanged;
-            }
-        }
-        
-        /// <summary>
-        /// 取消订阅模型事件
-        /// </summary>
-        protected virtual void UnsubscribeFromModelEvents()
-        {
-            if (_model != null)
-            {
-                _model.OnSaveSlotsUpdated -= OnSaveSlotsUpdated;
-                _model.OnSelectedSaveSlotChanged -= OnSelectedSaveSlotChanged;
-            }
-        }
-        
+
         /// <summary>
         /// 处理存档槽点击事件
         /// </summary>
@@ -478,7 +393,7 @@ namespace MyGame.UI.SaveLoad.View
         {
             // 触发存档槽选中事件
             SaveLoadMenuEvents.TriggerSaveSlotSelected(slotName, saveData);
-            
+
             if (saveData == null)
             {
                 // 空槽位直接存档
@@ -490,43 +405,49 @@ namespace MyGame.UI.SaveLoad.View
                 ShowSaveOptionsMenu();
             }
         }
-        
+
         /// <summary>
         /// 处理存档按钮点击事件
+        /// 通过 Controller 获取选中的存档槽名称
         /// </summary>
         protected virtual void HandleSaveButtonClick()
         {
-            if (_model != null && !string.IsNullOrEmpty(_model.SelectedSaveSlotName))
+            string slotName = m_controller?.GetSelectedSaveSlotName();
+            if (!string.IsNullOrEmpty(slotName))
             {
-                SaveLoadMenuEvents.TriggerSaveGame(_model.SelectedSaveSlotName);
+                SaveLoadMenuEvents.TriggerSaveGame(slotName);
                 HideSaveOptionsMenu();
             }
         }
-        
+
         /// <summary>
         /// 处理加载按钮点击事件
+        /// 通过 Controller 获取选中的存档槽名称
         /// </summary>
         protected virtual void HandleLoadButtonClick()
         {
-            if (_model != null && !string.IsNullOrEmpty(_model.SelectedSaveSlotName))
+            string slotName = m_controller?.GetSelectedSaveSlotName();
+            if (!string.IsNullOrEmpty(slotName))
             {
-                SaveLoadMenuEvents.TriggerLoadGame(_model.SelectedSaveSlotName);
+                SaveLoadMenuEvents.TriggerLoadGame(slotName);
                 HideSaveOptionsMenu();
             }
         }
-        
+
         /// <summary>
         /// 处理删除按钮点击事件
+        /// 通过 Controller 获取选中的存档槽名称
         /// </summary>
         protected virtual void HandleDeleteButtonClick()
         {
-            if (_model != null && !string.IsNullOrEmpty(_model.SelectedSaveSlotName))
+            string slotName = m_controller?.GetSelectedSaveSlotName();
+            if (!string.IsNullOrEmpty(slotName))
             {
-                SaveLoadMenuEvents.TriggerDeleteSave(_model.SelectedSaveSlotName);
+                SaveLoadMenuEvents.TriggerDeleteSave(slotName);
                 HideSaveOptionsMenu();
             }
         }
-        
+
         /// <summary>
         /// 处理取消按钮点击事件
         /// </summary>
@@ -534,7 +455,7 @@ namespace MyGame.UI.SaveLoad.View
         {
             HideSaveOptionsMenu();
         }
-        
+
         /// <summary>
         /// 处理新游戏按钮点击事件
         /// </summary>
@@ -542,7 +463,7 @@ namespace MyGame.UI.SaveLoad.View
         {
             SaveLoadMenuEvents.TriggerCreateNewGame();
         }
-        
+
         /// <summary>
         /// 处理返回按钮点击事件
         /// </summary>
@@ -550,7 +471,7 @@ namespace MyGame.UI.SaveLoad.View
         {
             SaveLoadMenuEvents.TriggerBackToMainMenu();
         }
-        
+
         /// <summary>
         /// 显示存档选项菜单
         /// </summary>
@@ -561,7 +482,7 @@ namespace MyGame.UI.SaveLoad.View
                 saveOptionsMenu.SetActive(true);
             }
         }
-        
+
         /// <summary>
         /// 隐藏存档选项菜单
         /// </summary>
@@ -572,32 +493,16 @@ namespace MyGame.UI.SaveLoad.View
                 saveOptionsMenu.SetActive(false);
             }
         }
-        
-        /// <summary>
-        /// 处理存档槽更新事件
-        /// </summary>
-        protected virtual void OnSaveSlotsUpdated()
-        {
-            UpdateView();
-        }
-        
-        /// <summary>
-        /// 处理选中存档槽变更事件
-        /// </summary>
-        protected virtual void OnSelectedSaveSlotChanged()
-        {
-            UpdateSaveOptionsButtonStates();
-        }
-        
+
         /// <summary>
         /// 清理资源
         /// </summary>
         protected override void OnDestroy()
         {
             UnbindButtonEvents();
-            UnsubscribeFromModelEvents();
             ClearSaveSlotUIs();
-            ClearLoadHandles(); // 清理Addressable资源
+            ClearLoadHandles();
+            base.OnDestroy();
         }
     }
 }

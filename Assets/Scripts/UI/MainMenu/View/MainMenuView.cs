@@ -73,7 +73,7 @@ namespace MyGame.UI.MainMenu.View
         #region 公共方法
 
         /// <summary>
-        /// 显示面板
+        /// 显示面板（主菜单直接显隐，不使用淡入淡出动画）
         /// </summary>
         public override void Show()
         {
@@ -83,21 +83,22 @@ namespace MyGame.UI.MainMenu.View
                 m_canvasGroup.interactable = true;
                 m_canvasGroup.blocksRaycasts = true;
             }
+            IsVisible = true;
             Log.Info(LOG_MODULE, "显示主菜单面板");
         }
 
         /// <summary>
-        /// 隐藏面板
+        /// 隐藏面板（主菜单直接显隐，不使用淡入淡出动画）
         /// </summary>
         public override void Hide()
         {
-            // 主菜单直接显隐
             if (m_canvasGroup != null)
             {
                 m_canvasGroup.alpha = 0f;
                 m_canvasGroup.interactable = false;
                 m_canvasGroup.blocksRaycasts = false;
             }
+            IsVisible = false;
         }
 
         /// <summary>

@@ -19,7 +19,6 @@ namespace MyGame.DevTool
         //最大日志保留数
         private const int MAX_LOG_LINES = 100;
 
-        private DebugConsoleController m_Controller;
         private static DebugConsole s_instance;
 
         /// <summary>
@@ -77,23 +76,17 @@ namespace MyGame.DevTool
         }
 
         /// <summary>
-        /// 尝试绑定控制器
+        /// 尝试绑定控制器（同GameObject上查找）
         /// </summary>
         protected override void TryBindController()
         {
-            // 查找并关联控制器
-            m_Controller = FindObjectOfType<DebugConsoleController>();
-            if (m_Controller == null)
+            var controller = GetComponent<DebugConsoleController>();
+            if (controller == null)
             {
-                Log.Error(LOG_MODULE, "未找到DebugConsoleController组件，已添加新组件", this);
-                m_Controller = gameObject.AddComponent<DebugConsoleController>();
+                controller = gameObject.AddComponent<DebugConsoleController>();
             }
 
-            // 设置控制器的视图引用
-            m_Controller.SetView(this);
-
-            // 绑定控制器到视图
-            BindController(m_Controller);
+            BindController(controller);
         }
 
         /// <summary>
@@ -181,9 +174,9 @@ namespace MyGame.DevTool
                 inputField.text = "";
 
                 // 将命令转发给控制器处理
-                if (m_Controller != null)
+                if (m_controller != null)
                 {
-                    m_Controller.HandleCommand(cmd);
+                    m_controller.HandleCommand(cmd);
                 }
 
                 // 重新激活输入框以便继续输入
